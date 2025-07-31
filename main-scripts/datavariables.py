@@ -8,13 +8,19 @@ import platform
 
 
 # version
-version                     = "0.4.5"
+version                     = "0.4.9"
+
+# Run generalized reservoir methods?
+new_res_methods             = True               # This will only work if you use this executable: swatplus-61.0.2.11-31-coswatn5-ifx-lin_x86_64
 
 # general
-data_resolution             = 500 #30.91819138974098635 * 30     # 65
-processes                   = 20
+data_resolution             = 30.91819138974098635 * 30     # 65
+processes                   = 8
 taudemProcesses             = 5
 no_data_value               = -999
+
+# objects
+runFloodplains              = False
 
 # dem variables
 re_resample                 = False
@@ -30,7 +36,8 @@ minimum_channel_segments    = 11
 thresholdSt                 = 150 # 866
 thresholdCh                 = 150 # 866
 
-executable_path             = "/CoSWAT-Global-Model/data-preparation/resources/rev60.5.7_64rel_linux"
+                                                                                # Executable by JT ↓↓↓↓↓↓↓↓↓↓↓↓
+executable_path             =  '/CoSWAT-Global-Model/data-preparation/resources/swatplus-61.0.2.11-31-coswatn5-ifx-lin_x86_64' #'/CoSWAT-Global-Model/data-preparation/resources/swatplus-61.0.1-lin-x86_64'  #"/CoSWAT-Global-Model/data-preparation/resources/rev60.5.7_64rel_linux"
 
 continental_mass            = './resources/CoSWAT-GM-world-land-masses-{auth}-{code}.gpkg'
 cutline                     = './resources/regions/{region}/land_mass-{auth}-{code}.gpkg'
@@ -61,11 +68,24 @@ esa_base_url                = "https://dap.ceda.ac.uk"
 esa_base_path               = "neodc/esacci/land_cover/data/land_cover_maps/v2.0.7/ESACCI-LC-L4-LCCS-Map-300m-P1Y-{year}-v2.0.7.tif"
 esa_landuse_year            = 2011
 
-grand_and_lakes             = './resources/reservoirsAndLakes.gpkg'
-grand_and_lakes_ws          = './lakes-ws/grand'
+
+# Lakes & Reservoirs -- New
+hydro_lakes_path            = "./resources/hydro-lakes/HydroLakes/HydroLAKES_polys_v10_fixed.shp"
+grand_res_path              = "./resources/hydro-lakes/GRanD_Version_1_3/GRanD_reservoirs_v1_3.shp"
+globathy_path               = "./resources/GLOBathy/GLOBathy_hAV_relationships.nc"
+
+# grand_and_lakes             = './resources/reservoirsAndLakes.gpkg'
+# grand_and_lakes_ws          = './lakes-ws/grand'
+
 grand_final_shp             = "../model-data/{region}/shapes/lakes-grand-{auth}-{code}.shp"
 grand_final_gpkg            = "../model-data/{region}/shapes/lakes-grand-{auth}-{code}.gpkg"
-grand_lake_thres            = 30
+grand_lake_final_shp        = "../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/lakes-grand-{auth}-{code}.shp"
+resolved_snaps              = "../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/resolved-lakes-grand-snap-{auth}-{code}.shp"
+grand_lake_thres            = 30    # Km2
+lake_buffer_thres           = 1500  # m
+lake_buffer_step            = 100   # m
+simplify_geometry           = True
+simplify_method             = 'VW'  # DP: Douglass Pecker / VW:Visvalingam–Whyatt / ConV: Convex Hull / ConC: COncave Hull
 
 grdc_final_gpkg             = "../model-data/{region}/shapes/grdc_stations-{auth}-{code}.gpkg"
 
@@ -79,8 +99,8 @@ redo_weather                = False
 weather_redownload          = False
 
 # run settings
-run_period                  = '1981-1985'
-historical_period           = '1981-2010'
+run_period                  = '1970-2010'
+historical_period           = '1970-2010'
 future_period               = '2071-2100'
 
 # output processing

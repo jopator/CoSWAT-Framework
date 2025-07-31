@@ -40,6 +40,9 @@ def set_up_model(region_, version_, get_data_, period_):
     os.system(f'run-qswatplus.py {region_} --v {version_}')
     os.system(f'edit-model.py {region_} --v {version_}')
 
+    if variables.new_res_methods:
+        os.system(f'python3 define-reservoirs.py {region_} --v {version_}')
+
     os.system(f'run-model.py {region_} --v {version_} --y {period_}')
     os.system(f'evaluate-model.py {region_} --v {version_}')
 
@@ -69,8 +72,11 @@ get_data = args.d if args.d else 'y'
 # get number of processes to use
 processes = variables.processes
 
+
+
+
 if __name__ == "__main__":
-    
+
     pool = multiprocessing.Pool(int(processes))
 
     jobs = []    
@@ -87,6 +93,6 @@ if __name__ == "__main__":
     pool.close()
 
     os.chdir(os.path.dirname(me))
-    os.system(f'map-outputs.py --v {version}')
+    # os.system(f'map-outputs.py --v {version}')
 
 alert('all tasks complete', 'Global Model Setup Complete')

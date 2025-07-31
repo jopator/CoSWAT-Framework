@@ -199,6 +199,10 @@ if __name__ == '__main__':
     print(f"CoSWAT version: {version}")
 
     for region in regions:
+
+        details['version'] = version
+        details['region']  = region
+
         print(f'\n\nrunning QSWAT+ for region: {region} ({version})')
         iface   = DummyInterface()
         plugin  = QSWATPlus(iface)
@@ -267,64 +271,83 @@ if __name__ == '__main__':
         lakesShapefn    = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/lakes-grand-{variables.final_proj_auth}-{variables.final_proj_code}.shp')
         rivsShapefn     = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/dem-aster-{variables.final_proj_auth}-{variables.final_proj_code}channel.shp')
 
-        print("Running floodplain...")
-        createPath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/')
-        writeFile(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/creatingFloodPlain', 'Creating floodplain...\nThis is just an indicator file\nit will be removed when the floodplain is created')
-        fxObj           = outFX('Running floodplain...')
-        floodPlain      = Floodplain(plugin._gv, fxObj, 1)
-        landScape       = Landscape(plugin._gv, fxObj, 1, fxObj)
+        # ===============================================================================================================================================
+        # Flood plains will be conditioned in datavariables
+        # ===============================================================================================================================================
 
-        landScape.clipperFile = plugin._gv.subbasinsFile
-        landScape.calcHillslopes(variables.thresholdCh, landScape.clipperFile, proj.layerTreeRoot())
+        if variables.runFloodplains:
+            print("Running floodplain...")
+            createPath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/')
+            writeFile(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/creatingFloodPlain', 'Creating floodplain...\nThis is just an indicator file\nit will be removed when the floodplain is created')
+            fxObj           = outFX('Running floodplain...')
+            floodPlain      = Floodplain(plugin._gv, fxObj, 1)
+            landScape       = Landscape(plugin._gv, fxObj, 1, fxObj)
 
-        landScape.calcFloodplain(True, proj.layerTreeRoot())
-        plugin._gv.floodFile = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/invflood0_00.tif')
-        deleteFile(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/creatingFloodPlain')
+            landScape.clipperFile = plugin._gv.subbasinsFile
+            landScape.calcHillslopes(variables.thresholdCh, landScape.clipperFile, proj.layerTreeRoot())
 
-        print("Filtering reservoirs...")
-        try:
-            clippedReservoirs = geopandas.read_file(lakesShapefn)
-            streams = geopandas.read_file(rivsShapefn)
+            landScape.calcFloodplain(True, proj.layerTreeRoot())
+            plugin._gv.floodFile = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/invflood0_00.tif')
+            deleteFile(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/creatingFloodPlain')
+        
+        else:
+            print("Floodplains skipped...")
 
-            # save a copy of the original reservoirs
-            clippedReservoirs.to_file(os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/lakesOriginal.shp'))
-            streams.to_file(os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/rivsOriginal.shp'))
 
-            # Ensure both datasets are in the same CRS
-            if clippedReservoirs.crs != streams.crs:
-                streams = streams.to_crs(clippedReservoirs.crs)
+        # ===============================================================================================================================================
+        # The filtering will be bypassed and we will run the resolve lakes and reservoirs script
+        # ===============================================================================================================================================
 
-            # Perform spatial join to find polygons that intersect with any line in streams
-            intersecting = geopandas.sjoin(clippedReservoirs, streams, how="inner", predicate="intersects")
+        
+        # print("Filtering reservoirs...")
+        # try:
+        #     clippedReservoirs = geopandas.read_file(lakesShapefn)
+        #     streams = geopandas.read_file(rivsShapefn)
 
-            # Get the indices of intersecting polygons
-            intersecting_indices = intersecting.index.unique()
+        #     # save a copy of the original reservoirs
+        #     clippedReservoirs.to_file(os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/lakesOriginal.shp'))
+        #     streams.to_file(os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/rivsOriginal.shp'))
 
-            # Remove the intersecting polygons from clippedReservoirs
-            clippedReservoirs = clippedReservoirs[clippedReservoirs.index.isin(intersecting_indices)]
+        #     # Ensure both datasets are in the same CRS
+        #     if clippedReservoirs.crs != streams.crs:
+        #         streams = streams.to_crs(clippedReservoirs.crs)
 
-            lakesGDF = clippedReservoirs
-            lakes_to_remove = []
+        #     # Perform spatial join to find polygons that intersect with any line in streams
+        #     intersecting = geopandas.sjoin(clippedReservoirs, streams, how="inner", predicate="intersects")
 
-            for index, stream in streams.iterrows():
-                start_point = Point(stream['geometry'].coords[0])
-                end_point = Point(stream['geometry'].coords[-1])
-                line = stream['geometry']
+        #     # Get the indices of intersecting polygons
+        #     intersecting_indices = intersecting.index.unique()
+
+        #     # Remove the intersecting polygons from clippedReservoirs
+        #     clippedReservoirs = clippedReservoirs[clippedReservoirs.index.isin(intersecting_indices)]
+
+        #     lakesGDF = clippedReservoirs
+        #     lakes_to_remove = []
+
+        #     for index, stream in streams.iterrows():
+        #         start_point = Point(stream['geometry'].coords[0])
+        #         end_point = Point(stream['geometry'].coords[-1])
+        #         line = stream['geometry']
                 
-                for lake_index, lake in lakesGDF.iterrows():
-                    if lake.geometry.contains(end_point) and not lake.geometry.contains(start_point):
+        #         for lake_index, lake in lakesGDF.iterrows():
+        #             if lake.geometry.contains(end_point) and not lake.geometry.contains(start_point):
                         
-                        intersections = count_intersections(line, lake.geometry)
-                        if intersections >= 2: lakes_to_remove.append(lake_index)
+        #                 intersections = count_intersections(line, lake.geometry)
+        #                 if intersections >= 2: lakes_to_remove.append(lake_index)
 
-            # Remove the identified lakes
-            lakesGDF = lakesGDF.drop(lakes_to_remove)
-            lakesGDF.to_file(lakesShapefn)
-        except:
-            print("Error filtering reservoirs - will not be used in the model")
-            raise
-            
-        delin.finishDelineation()
+        #     # Remove the identified lakes
+        #     lakesGDF = lakesGDF.drop(lakes_to_remove)
+        #     lakesGDF.to_file(lakesShapefn)
+        # except:
+        #     print("Error filtering reservoirs - will not be used in the model")
+        #     raise
+        
+
+        print("\t Resolving reservoir shapes into channel network ...")
+        os.system(f'python3 resolve-lakes-reservoirs.py {version} {region}')
+
+
+        delin.finishDelineation(details = details)
 
         if not dlg.hrusButton.isEnabled():
             QSWATUtils.error('\t ! HRUs button not enabled', True)
