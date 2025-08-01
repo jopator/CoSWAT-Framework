@@ -59,7 +59,35 @@ if __name__ == "__main__":
         txtDir = f"{os.path.dirname(me)}/../model-setup/CoSWATv{version}/{region}/Scenarios/Default/TxtInOut"
 
         write_to(f"{txtDir}/time.sim", f"time.sim: written by CoSWAT Data Writer\nday_start  yrc_start   day_end   yrc_end      step  \n       0      {yr_fro}         0      {yr_to}         0  ")
+
+        
+
         write_to(f"{txtDir}/print.prt", print_prt)
+        
+        if variables.new_res_methods:
+            # Adjust print.prt table remove region prints
+            print_prt = f"{txtDir}/print.prt"
+
+            remove_keys = ["region_cha", "region_sd_cha"]
+
+
+            with open(print_prt, "r") as f:
+                lines = f.readlines()
+
+            filtered_lines = []
+            for line in lines:
+                parts = line.strip().split()
+                if not parts:
+                    filtered_lines.append(line)
+                    continue
+                if parts[0] not in remove_keys:
+                    filtered_lines.append(line)
+
+            with open(print_prt, "w") as f:
+                f.writelines(filtered_lines)
+
+            
+
         if exists(f"{txtDir}/file.cio"):
             end_section = '\n' if platform.system() == 'Windows' else ''
             print(f"\n\n# running SWAT+ for {region}{end_section}")

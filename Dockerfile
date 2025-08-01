@@ -17,6 +17,7 @@ RUN pip3 install ccfx
 RUN pip3 install numpy==1.23.4
 RUN pip3 install pandas==1.5.3 xarray==2022.12.0 matplotlib==3.6.3 rasterio==1.3.4 numexpr==2.8.4 bottleneck==1.3.6
 RUN pip3 install numpy==1.23.4
+RUN pip3 install --no-cache-dir simplification==0.7.12 
 
 # Set Python 3.10 as the default python3
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
@@ -42,9 +43,13 @@ COPY data-preparation/resources /CoSWAT-Global-Model/data-preparation/resources
 # unzip the regions and QSWATPlus zip files. If exists, remove the existing directories first.
 RUN if [ -d "/CoSWAT-Global-Model/data-preparation/resources/regions" ]; then rm -rf /CoSWAT-Global-Model/data-preparation/resources/regions; fi
 RUN if [ -d "/CoSWAT-Global-Model/data-preparation/resources/QSWATPlus" ]; then rm -rf /CoSWAT-Global-Model/data-preparation/resources/QSWATPlus; fi
+RUN if [ -d "/CoSWAT-Global-Model/data-preparation/resources/GLOBathy" ]; then rm -rf /CoSWAT-Global-Model/data-preparation/resources/GLOBathy; fi
+RUN if [ -d "/CoSWAT-Global-Model/data-preparation/resources/hydro-lakes" ]; then rm -rf /CoSWAT-Global-Model/data-preparation/resources/hydro-lakes; fi
 
 RUN unzip /CoSWAT-Global-Model/data-preparation/resources/regions.zip -d /CoSWAT-Global-Model/data-preparation/resources
 RUN unzip /CoSWAT-Global-Model/data-preparation/resources/QSWATPlus.zip -d /CoSWAT-Global-Model/data-preparation/resources
+RUN unzip /CoSWAT-Global-Model/data-preparation/resources/GLOBathy.zip -d /CoSWAT-Global-Model/data-preparation/resources
+RUN unzip /CoSWAT-Global-Model/data-preparation/resources/hydro-lakes.zip -d /CoSWAT-Global-Model/data-preparation/resources
 
 # add paths to path and pythonpath in bashrc
 RUN echo 'export PATH=$PATH:/CoSWAT-Global-Model' >> ~/.bashrc
