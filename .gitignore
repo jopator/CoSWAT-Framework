@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.pyc
+
+# Large data
+*.csv
+*.tif
+*.tiff
+*.asc
+*.nc
+*.grd
+*.zip
+*.gpkg
+*.shp
+*.shx
+*.cpg
+*.dbf
+*.prj
+*.asc
+*.bak
+*.sqlite
+*.qmd
+
+# Folders
+soil-ws
+landuse-ws
+dem-ws
+grdc_timeseries
+swatplus
+scripts-hpc
+continents
+GLOBathy
+GloBathyRasters
+hydro-lakes
+regions
+ws
+model-setup
+
+# Binaries / containers
+*.sif
+*.def
+
