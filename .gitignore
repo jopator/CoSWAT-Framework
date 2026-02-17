@@ -40,3 +40,8 @@ model-setup
 *.sif
 *.def
 
+data-preparation/resources/ESACCI-LC-Legend.xlsx
+data-preparation/resources/__init__.py
+data-preparation/resources/grdc_major_rivers.geojson
+data-preparation/resources/rev60.5.7_64rel_linux
+data-preparation/resources/shapes.dat
