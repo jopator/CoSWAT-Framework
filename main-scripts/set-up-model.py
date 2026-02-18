@@ -34,17 +34,18 @@ def set_up_model(region_, version_, get_data_, period_):
     This function coordinates the setup of the COmmunity SWAT+ Model
     '''
     alert(f'Setting up {region_}', f'Setting up {region_}')
-    if get_data_ == 'y': os.system(f'get-data.py {region_}')
+    if get_data_ == 'y': os.system(f'python3 ../data-preparation/get-data.py {region_}')
 
-    os.system(f'init-model.py {region_} --v {version_}')
-    os.system(f'run-qswatplus.py {region_} --v {version_}')
-    os.system(f'edit-model.py {region_} --v {version_}')
+    os.system(f'python3 init-model.py {region_} --v {version_}')
+    os.system(f'python3 run-qswatplus.py {region_} --v {version_}')
+    os.system(f'python3 edit-model.py {region_} --v {version_}')
 
-    if variables.new_res_methods:
-        os.system(f'python3 define-reservoirs.py {region_} --v {version_}')
+    # if variables.new_res_methods:
+        # os.system(f'python3 define-reservoirs.py {region_} --v {version_}')
 
-    os.system(f'run-model.py {region_} --v {version_} --y {period_}')
-    os.system(f'evaluate-model.py {region_} --v {version_}')
+    # os.system(f'python3 define-irrigation.py {region_} --v {version_}')
+    # os.system(f'run-model.py {region_} --v {version_} --y {period_}')
+    # os.system(f'evaluate-model.py {region_} --v {version_}')
 
 args = sys.argv
 

@@ -103,18 +103,20 @@ def isYearInFileRange(fileName, yearToCheck):
 
     return startYear <= int(yearToCheck) <= endYear
 
-
 def shouldKeep(baseFn, runPeriod):
     """Determines if a file should be downloaded based on year ranges."""
+    
+    def getFileYearRange(baseFn):
+        import re
+        match = re.search(r'(\d{4})[-_](\d{4})', baseFn)  # now supports "-" or "_"
+        if match:
+            return int(match.group(1)), int(match.group(2))
+        raise ValueError(f"Could not extract year range from {baseFn}")
 
-    def yearInRange(year_range, baseFn):
-        start_year, end_year = map(int, year_range.split('-'))
-        return isYearInFileRange(baseFn, start_year) or isYearInFileRange(baseFn, end_year)
+    start_year, end_year = map(int, runPeriod.split('-'))
+    file_start, file_end = getFileYearRange(baseFn)
 
-    if yearInRange(runPeriod, baseFn):
-        return True
-
-    return False 
+    return not (file_end < start_year or file_start > end_year)
 
 
 def clipFeatures(inputFeaturePath:str, boundaryFeature:str, outputFeature:str, keepOnlyTypes = None, v = False) -> geopandas.GeoDataFrame:

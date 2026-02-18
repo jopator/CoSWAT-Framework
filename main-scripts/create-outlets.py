@@ -124,13 +124,19 @@ region  = args[2]
 proj_auth = variables.final_proj_auth
 proj_code = variables.final_proj_code
 
-channels_fn = f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/dem-aster-{proj_auth.lower()}-{proj_code}channel/dem-aster-{proj_auth.upper()}-{proj_code}channel.shp'
-channels_fn = f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/dem-aster-{proj_auth.lower()}-{proj_code}channel/dem-aster-{proj_auth.upper()}-{proj_code}channel.shp'
+if variables.new_res_methods:
+    channels_fn = f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/dem-aster-{proj_auth.lower()}-{proj_code}channel/dem-aster-{proj_auth.upper()}-{proj_code}-lakeBurntchannel.shp'
+else:
+    channels_fn = f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/dem-aster-{proj_auth.lower()}-{proj_code}channel/dem-aster-{proj_auth.upper()}-{proj_code}channel.shp'
+    channels_fn = f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/dem-aster-{proj_auth.lower()}-{proj_code}channel/dem-aster-{proj_auth.upper()}-{proj_code}channel.shp'
 grdc_shp_fn = f'../model-data/{region}/shapes/grdc_stations-{proj_auth.upper()}-{proj_code}.gpkg'
 
 
 if not exists(channels_fn):
-    channels_fn = f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/dem-aster-{proj_auth.upper()}-{proj_code}channel.shp'
+    if variables.new_res_methods:
+        channels_fn = f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/dem-aster-{proj_auth.upper()}-{proj_code}-lakeBurntchannel.shp'
+    else:
+        channels_fn = f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/dem-aster-{proj_auth.upper()}-{proj_code}channel.shp'
     if not exists(channels_fn):
         print(f"! the channels file ({file_name(channels_fn)}) was not found")
         quit()

@@ -53,7 +53,7 @@ os.system(f"{get_python_exe()} prepare-landuse.py {regions_}")
 os.system(f"{get_python_exe()} prepare-lakes-data.py {regions_}")
 
 # create weather data
-os.system(f"{get_python_exe()} prepare-weather.py {regions_}")
+# os.system(f"{get_python_exe()} prepare-weather.py {regions_}")
 
 # get grdc stations
 os.system(f"{get_python_exe()} get-grdc-stations.py {regions_}")

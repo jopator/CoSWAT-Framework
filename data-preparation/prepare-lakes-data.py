@@ -23,6 +23,7 @@ import time, sys, os
 import datavariables as variables
 from cjfx import clip_features, create_path, list_folders, ignore_warnings
 import geopandas as gpd
+import pandas as pd
 import numpy as np
 
 from shapely.geometry import Polygon, MultiPolygon
@@ -119,12 +120,9 @@ for region in regions:
     bboxfn                  = "./resources/regions/{region}/bounding-box-{auth}-{code}.gpkg".format(**details) #Changed name from regionfn to bboxgfn
     regionfn                = "./resources/regions/{region}/outlets-buffer.gpkg".format(**details)
 
-    mask_gdf                = gpd.read_file(bboxfn)
+    mask_gdf                = gpd.read_file(regionfn)
     clipped_hydro_lakes     = hydro_lakes_gdf.clip(mask_gdf.to_crs(hydro_lakes_gdf.crs))
     clipped_grand           = grand_res_gdf.clip(mask_gdf.to_crs(grand_res_gdf.crs))
-    
-    # clipped_hydro_lakes.to_file("../model-data/{region}/shapes/clipped_lakes.shp".format(**details))
-    # clipped_hydro_lakes.to_file("../model-data/{region}/shapes/clipped_grand.shp".format(**details))
     
     hydro_lakes_columns     = [ 'Hylak_id', 'Lake_name', 'Country', 'Continent',                                 # Columns of interest from HydroLakes Dataset
                                 'Lake_type', 'Grand_id', 'Lake_area', 'Shore_len', 'Shore_dev',
@@ -139,21 +137,34 @@ for region in regions:
     
     
     # Filtering out small lakes and reservoirs
-
     clipped_hydro_lakes         = clipped_hydro_lakes.to_crs("{auth}:{code}".format(**details))          # Setting CRS of project
     clipped_grand               = clipped_grand.to_crs("{auth}:{code}".format(**details))                # Setting CRS of project
         
     clipped_hydro_lakes         = clipped_hydro_lakes[hydro_lakes_columns]
     clipped_grand               = clipped_grand[grand_columns]
     
-    clipped_grand                = clipped_grand.rename(columns={"GRAND_ID":"Grand_id"})
-    clippedReservoirs            = clipped_hydro_lakes.merge(clipped_grand,on="Grand_id",how="left")
+    clipped_grand               = clipped_grand.rename(columns={"GRAND_ID":"Grand_id"})
+    
+    # Get only lakes that are not in grand and those that are.. and merge
+    clipped_hydro_lakes_nogrand = clipped_hydro_lakes[clipped_hydro_lakes['Grand_id'] == 0]
+    clipped_hydro_lakes_nogrand = clipped_hydro_lakes_nogrand[clipped_hydro_lakes_nogrand['Lake_area'] > variables.grand_lake_thres]
+    
+    clipped_hydro_lakes_grand   = clipped_hydro_lakes[clipped_hydro_lakes['Grand_id'] > 0]
+    clippedReservoirs           = clipped_hydro_lakes_grand.merge(clipped_grand,on="Grand_id",how="left")
+
+    # GranD mask
+    clippedReservoirs = clippedReservoirs[
+        (clippedReservoirs['AREA_SKM'] > variables.grand_lake_thres) |
+        ((clippedReservoirs['DOR_PC'] > variables.grand_dor_thres) & (clippedReservoirs['AREA_SKM'] > variables.grand_min_thres))]
+    
+    
+    
+    clippedReservoirs = pd.concat([clipped_hydro_lakes_nogrand, clippedReservoirs], ignore_index=True)
+    
+    clippedReservoirs = clippedReservoirs.reset_index(drop=True)
     
     
     print(f"\t\t Removing islands from lake and reservoir geometries\n")
-    print(f"\t\t *Filtering lakes and reservoirs smaller than {variables.grand_lake_thres} km2\n") 
-    clippedReservoirs            = clippedReservoirs[clippedReservoirs["Lake_area"] > variables.grand_lake_thres]
-
     if clippedReservoirs.empty:    
         print(f"\t\t\t **Empty lakes and reservoirs after filtering for this region, will not consider lakes/reservoirs \n")
         continue

@@ -15,7 +15,7 @@ import os, sys, platform
 from cjfx import list_folders, exists, ignore_warnings, ignore_warnings, goto_dir, pandas
 from ccfx import createPath, deleteFile, writeFile
 import sqlalchemy
-import geopandas
+import geopandas as gpd
 
 import os.path
 import shutil
@@ -166,11 +166,14 @@ class DummyInterface(object):
 
 
 
+
+
 if __name__ == '__main__':
 
     # change working directory
     goto_dir(__file__)
 
+    print(os.getcwd())
     # create argument parser
     parser = argparse.ArgumentParser(description="a terminal version of QSWAT+ for running the model setup and delineation.")
 
@@ -241,148 +244,243 @@ if __name__ == '__main__':
         soil_df.to_sql('soil_lookup', db, if_exists="replace", index=False)
         user_soil_df.to_sql('usersoil', db, if_exists="replace", index=False, )
 
-        plugin._gv.db.clearTable('BASINSDATA')
-        plugin.setupProject(proj, True)
-
-        if not (os.path.exists(plugin._gv.textDir) and os.path.exists(plugin._gv.landuseDir)):
-            QSWATUtils.error('Directories not created', True)
-            sys.exit(1)
-
-        if not dlg.delinButton.isEnabled():
-            QSWATUtils.error('Delineate button not enabled', True)
-            sys.exit(1)
-
-        delin = Delineation(plugin._gv, plugin._demIsProcessed)
-        delin.init()
-        delin._dlg.numProcesses.setValue(variables.taudemProcesses)
-
-        QSWATUtils.information('DEM: {0}'.format(os.path.split(plugin._gv.demFile)[1]), True)
-        delin.addHillshade(plugin._gv.demFile, None, None, None)
-        QSWATUtils.information('Inlets/outlets file: {0}'.format(os.path.split(plugin._gv.outletFile)[1]), True)
-
-        outlets_buffer_gpd  = geopandas.read_file(f"../data-preparation/resources/regions/{region}/outlets-buffer.gpkg").to_crs('{auth}:{code}'.format(**details))
+        LOGFILE = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/qswat_errors.log')
         
-        delin.runTauDEM2(ver = version, reg = region,
-            in_outlet_path = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/outlets.shp'),
-            Mask_gpd    = outlets_buffer_gpd,
-            sel_file    = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/outlets_sel.shp')
-        )
-
-        lakesShapefn    = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/lakes-grand-{variables.final_proj_auth}-{variables.final_proj_code}.shp')
-        rivsShapefn     = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/dem-aster-{variables.final_proj_auth}-{variables.final_proj_code}channel.shp')
-
-        # ===============================================================================================================================================
-        # Flood plains will be conditioned in datavariables
-        # ===============================================================================================================================================
-
-        if variables.runFloodplains:
-            print("Running floodplain...")
-            createPath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/')
-            writeFile(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/creatingFloodPlain', 'Creating floodplain...\nThis is just an indicator file\nit will be removed when the floodplain is created')
-            fxObj           = outFX('Running floodplain...')
-            floodPlain      = Floodplain(plugin._gv, fxObj, 1)
-            landScape       = Landscape(plugin._gv, fxObj, 1, fxObj)
-
-            landScape.clipperFile = plugin._gv.subbasinsFile
-            landScape.calcHillslopes(variables.thresholdCh, landScape.clipperFile, proj.layerTreeRoot())
-
-            landScape.calcFloodplain(True, proj.layerTreeRoot())
-            plugin._gv.floodFile = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/invflood0_00.tif')
-            deleteFile(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/creatingFloodPlain')
         
+        if variables.new_res_methods:
+            lakesShapefn    = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/lakes-grand-{variables.final_proj_auth}-{variables.final_proj_code}.shp')
+            rivsShapefn     = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/dem-aster-{variables.final_proj_auth}-{variables.final_proj_code}-lakeBurntchannel.shp')
         else:
-            print("Floodplains skipped...")
+            rivsShapefn     = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/dem-aster-{variables.final_proj_auth}-{variables.final_proj_code}channel.shp')
+            lakesShapefn    = ''
+
+        def delineateBasin() -> None:
+            plugin._gv.db.clearTable('BASINSDATA')
+            plugin.setupProject(proj, True)
+
+            if not (os.path.exists(plugin._gv.textDir) and os.path.exists(plugin._gv.landuseDir)):
+                QSWATUtils.error('Directories not created', True)
+                sys.exit(1)
+
+            if not dlg.delinButton.isEnabled():
+                QSWATUtils.error('Delineate button not enabled', True)
+                sys.exit(1)
+
+            delin = Delineation(plugin._gv, plugin._demIsProcessed)
+            delin.init()
+            delin._dlg.numProcesses.setValue(variables.taudemProcesses)
+
+            QSWATUtils.information('DEM: {0}'.format(os.path.split(plugin._gv.demFile)[1]), True)
+            delin.addHillshade(plugin._gv.demFile, None, None, None)
+            QSWATUtils.information('Inlets/outlets file: {0}'.format(os.path.split(plugin._gv.outletFile)[1]), True)
+
+            outlets_buffer_gpd  = gpd.read_file(f"../data-preparation/resources/regions/{region}/outlets-buffer.gpkg").to_crs('{auth}:{code}'.format(**details))
+            
+            outletsCreated = False
+
+            if os.path.exists(os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/outlets.shp')):
+                outletsCreated = True
 
 
-        # ===============================================================================================================================================
-        # The filtering will be bypassed and we will run the resolve lakes and reservoirs script
-        # ===============================================================================================================================================
 
-        
-        # print("Filtering reservoirs...")
-        # try:
-        #     clippedReservoirs = geopandas.read_file(lakesShapefn)
-        #     streams = geopandas.read_file(rivsShapefn)
+            delin.runTauDEM2(ver = version, reg = region,
+                in_outlet_path = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/outlets.shp'),
+                Mask_gpd    = outlets_buffer_gpd,
+                sel_file    = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/outlets_sel.shp'),
+                outletsExist2 = outletsCreated
+            )
 
-        #     # save a copy of the original reservoirs
-        #     clippedReservoirs.to_file(os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/lakesOriginal.shp'))
-        #     streams.to_file(os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/rivsOriginal.shp'))
 
-        #     # Ensure both datasets are in the same CRS
-        #     if clippedReservoirs.crs != streams.crs:
-        #         streams = streams.to_crs(clippedReservoirs.crs)
+            
 
-        #     # Perform spatial join to find polygons that intersect with any line in streams
-        #     intersecting = geopandas.sjoin(clippedReservoirs, streams, how="inner", predicate="intersects")
+            # ===============================================================================================================================================
+            # Flood plains will be conditioned in datavariables
+            # ===============================================================================================================================================
 
-        #     # Get the indices of intersecting polygons
-        #     intersecting_indices = intersecting.index.unique()
+            if variables.runFloodplains:
+                print("Running floodplain...")
+                createPath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/')
+                writeFile(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/creatingFloodPlain', 'Creating floodplain...\nThis is just an indicator file\nit will be removed when the floodplain is created')
+                fxObj           = outFX('Running floodplain...')
+                floodPlain      = Floodplain(plugin._gv, fxObj, 1)
+                landScape       = Landscape(plugin._gv, fxObj, 1, fxObj)
 
-        #     # Remove the intersecting polygons from clippedReservoirs
-        #     clippedReservoirs = clippedReservoirs[clippedReservoirs.index.isin(intersecting_indices)]
+                landScape.clipperFile = plugin._gv.subbasinsFile
+                landScape.calcHillslopes(variables.thresholdCh, landScape.clipperFile, proj.layerTreeRoot())
 
-        #     lakesGDF = clippedReservoirs
-        #     lakes_to_remove = []
+                landScape.calcFloodplain(True, proj.layerTreeRoot())
+                plugin._gv.floodFile = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/invflood0_00.tif')
+                deleteFile(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/creatingFloodPlain')
+            
+            else:
+                print("Floodplains skipped...")        
 
-        #     for index, stream in streams.iterrows():
-        #         start_point = Point(stream['geometry'].coords[0])
-        #         end_point = Point(stream['geometry'].coords[-1])
-        #         line = stream['geometry']
+            if variables.new_res_methods:
+                print("\t Resolving reservoir shapes into channel network ...")
+                os.system(f'python3 resolve-lakes-reservoirs.py {version} {region}')
                 
-        #         for lake_index, lake in lakesGDF.iterrows():
-        #             if lake.geometry.contains(end_point) and not lake.geometry.contains(start_point):
+            else:
+                delin.lakesDone = True
+                plugin._gv.lakeFile == ''
+
+            delin.finishDelineation(details = details)
+
+            # Patch QSWATUtils to log it's errors in a file
+            _orig_error = QSWATUtils.error
+
+            def _error_to_file(msg: str, isError: bool = True) -> None:
+                try:
+                    with open(LOGFILE, "a", encoding="utf-8") as f:
+                        f.write(f"{msg.strip()}\n")
+
+                except Exception:
+                    pass
+
+                _orig_error(msg, isError)
+            QSWATUtils.error = staticmethod(_error_to_file)
+
+        delineateBasin()
+
+
+        def createHRUS() -> None:
+            if not dlg.hrusButton.isEnabled():
+                QSWATUtils.error('\t ! HRUs button not enabled', True)
+                sys.exit(1)
+
+            hrus = HRUs(plugin._gv, dlg.reportsBox)
+            hrus.init()
+            hrus._gv.useLandscapes = True
+            hrus._dlg.generateFullHRUs.setEnabled(True)
+            hrus.fullHRUsWanted = True
+
+            if variables.runFloodplains:
+                hrus.initFloodplain()
+            
+            
+            hrus.readFiles()
+
+
+
+            if not os.path.exists(QSWATUtils.join(plugin._gv.textDir, Parameters._TOPOREPORT)):
+                QSWATUtils.error('\t ! Elevation report not created \n\n\t   Have you run Delineation?\n', True)
+                sys.exit(1)
+
+            if not os.path.exists(QSWATUtils.join(plugin._gv.textDir, Parameters._BASINREPORT)):
+                QSWATUtils.error('\t ! Landuse and soil report not created', True)
+                sys.exit(1)
+            
+            hrus.calcHRUs()
+            if not os.path.exists(QSWATUtils.join(plugin._gv.textDir, Parameters._HRUSREPORT)):
+                QSWATUtils.error('\t ! HRUs report not created', True)
+                sys.exit(1)
+            
+            
+
+            if not os.path.exists(QSWATUtils.join(projDir, r'Watershed/Shapes/rivs1.shp')):
+                QSWATUtils.error('\t ! Streams shapefile not created', True)
+                sys.exit(1)
+
+            if not os.path.exists(QSWATUtils.join(projDir, r'Watershed/Shapes/subs1.shp')):
+                QSWATUtils.error('\t ! Subbasins shapefile not created', True)
+                sys.exit(1)
+
+
+            QSWATUtils.information('\t - finished creating HRUs\n', True)
+
+        createHRUS()
+
+
+        # We need to run again if there were errors :( - in this case, correcting the geometry
+        # we check the error file log (to be created and send message based on that)
+        if variables.new_res_methods:
+            errors_exist = os.path.exists(LOGFILE)
+            
+            while errors_exist:
+
+                if os.path.exists(LOGFILE):
+
+                    with open(LOGFILE) as logfile:
                         
-        #                 intersections = count_intersections(line, lake.geometry)
-        #                 if intersections >= 2: lakes_to_remove.append(lake_index)
+                        lines = logfile.readlines()
+                        
+                        if len(lines)>0:
+                            print('\t Errors exist --> Need to readjust lakes \n')
 
-        #     # Remove the identified lakes
-        #     lakesGDF = lakesGDF.drop(lakes_to_remove)
-        #     lakesGDF.to_file(lakesShapefn)
-        # except:
-        #     print("Error filtering reservoirs - will not be used in the model")
-        #     raise
-        
+                            subsNoLakes_fn  = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/subsNoLakes.shp')
+                            subs1_fn        = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/subs1.shp')
+                            hrus2_fn        = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/hrus2.shp')
+                            lsus_fn         = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/lsus2.shp')
+                            lake_shape_snap = os.path.abspath(f'../model-data/{region}/shapes/lakes-grand-ESRI-54003-demAligned-forSnap.shp')
 
-        print("\t Resolving reservoir shapes into channel network ...")
-        os.system(f'python3 resolve-lakes-reservoirs.py {version} {region}')
+                            #rivsShapefn name for channels
+
+                            # Read as geoDataFrames
+                            lakes_gdf       = gpd.read_file(lakesShapefn)
+                            subsNoLakes_gdf = gpd.read_file(subsNoLakes_fn) 
+                            lsus_gdf        = gpd.read_file(lsus_fn)
+                            chan_gdf        = gpd.read_file(rivsShapefn)
+                            hrus_gdf        = gpd.read_file(hrus2_fn)
+                            subs_gdf        = gpd.read_file(subs1_fn)
+
+                            lake_orig = lakes_gdf.copy().drop(columns='geometry')
 
 
-        delin.finishDelineation(details = details)
+                            # Down here ...
+                            """
+                            We deal with the error: routing sink category xxx not found as a source which is because the LSU of that element is to small and is removed
 
-        if not dlg.hrusButton.isEnabled():
-            QSWATUtils.error('\t ! HRUs button not enabled', True)
-            sys.exit(1)
+                            We add the small LSUs that cause the error in the channel network to the lake shape
+                            These are just small LSUs (smaller than a pixel) that QSWAT+ ignores and therefore ignore its channel - but the channel is part of the lake connections
+                            """
+                            small_lsus = False
+                            for line in lines:
+                                line_split = line.split()
 
-        hrus = HRUs(plugin._gv, dlg.reportsBox)
-        hrus.init()
-        hrus._gv.useLandscapes = True
-        hrus._dlg.generateFullHRUs.setEnabled(True)
-        hrus.fullHRUsWanted = True
-        hrus.initFloodplain()
-        hrus.readFiles()
+                                if line_split[2] == "routing":
+                                    small_lsus = True
+                                    print('\t -> There are small LSUS that are causing issues with the channel network ...')
+                            
+                            if small_lsus:
+                            # Overlays --> difference --> filter out --> buffer --> add --> Fix indices --> Save new shape
+                                subs_overlay_gdf = gpd.overlay(subsNoLakes_gdf, lakes_gdf, how='difference', keep_geom_type = True, make_valid = True)
 
-        if not os.path.exists(QSWATUtils.join(plugin._gv.textDir, Parameters._TOPOREPORT)):
-            QSWATUtils.error('\t ! Elevation report not created \n\n\t   Have you run Delineation?\n', True)
-            sys.exit(1)
+                                small_lsus_gdf = gpd.overlay(subs_overlay_gdf, lsus_gdf, how='difference', keep_geom_type = True, make_valid = True)
+                                small_lsus_gdf['new_area'] = small_lsus_gdf['geometry'].area
+                                small_lsus_gdf = small_lsus_gdf[small_lsus_gdf.new_area < variables.data_resolution**2]                                         # Filter out small ones
 
-        if not os.path.exists(QSWATUtils.join(plugin._gv.textDir, Parameters._BASINREPORT)):
-            QSWATUtils.error('\t ! Landuse and soil report not created', True)
-            sys.exit(1)
+                                crossed = gpd.sjoin(small_lsus_gdf, chan_gdf, how="inner", predicate="crosses")
+                                result  = small_lsus_gdf.loc[small_lsus_gdf.index.isin(crossed.index)]                                                          # Only those that cross channels matter
+                                small_lsus_gdf = result.copy()
 
-        hrus.calcHRUs()
-        if not os.path.exists(QSWATUtils.join(plugin._gv.textDir, Parameters._HRUSREPORT)):
-            QSWATUtils.error('\t ! HRUs report not created', True)
-            sys.exit(1)
+                                small_lsus_gdf['geometry'] = small_lsus_gdf['geometry'].buffer(variables.data_resolution/2+20, join_style=2, mitre_limit=1e6)   # Buffer to match snap
 
-        if not os.path.exists(QSWATUtils.join(projDir, r'Watershed/Shapes/rivs1.shp')):
-            QSWATUtils.error('\t ! Streams shapefile not created', True)
-            sys.exit(1)
+                                lakes_gdf['_idx']   = lakes_gdf.index
+                                small_lsus_gdf_idx  = gpd.sjoin_nearest(small_lsus_gdf[['geometry']],lakes_gdf[['_idx','geometry']],how='left')                 # Get index to match small lsus and lake
+                                join = gpd.overlay(lakes_gdf[['LakeId','_idx','geometry']], small_lsus_gdf_idx, how ='union')
 
-        if not os.path.exists(QSWATUtils.join(projDir, r'Watershed/Shapes/subs1.shp')):
-            QSWATUtils.error('\t ! Subbasins shapefile not created', True)
-            sys.exit(1)
+                                join["_idx_1"] = join["_idx_1"].fillna(join["_idx_2"])                                                                          # Fix indices
+                                join = join[['LakeId','_idx_1','geometry']].reset_index(drop=True)
+                                merged = join.dissolve(by="_idx_1").reset_index()                                                                               
+                                merged['geometry'] = merged['geometry'].buffer(-20, join_style=2, mitre_limit=1e6)                                              # Merge the corrected geometry with the original data
+                                merged = pandas.merge(merged,lake_orig)
+                                merged = merged.drop('_idx_1',axis=1)
+                                merged.to_file(lake_shape_snap)                                                                                                 # Save as new snapping lake reference shape
 
-        QSWATUtils.information('\t - finished creating HRUs\n', True)
+
+                            # Delete logfile
+                            os.remove(LOGFILE)
+
+                            # After adjusting, re-do
+                            delineateBasin()
+                            createHRUS()
+
+                        else:
+                            errors_exist = False
+                            break
+                else:
+                    errors_exist = False
+                    break
+
         print()
         print(f'done with running qswat+ for region {region}', '\nQSWAT+ run complete')
 

@@ -7,6 +7,9 @@ from coswatFX import shouldKeep, writeSWATPlusWeather
 import xarray
 import time
 
+import inspect
+# print(inspect.signature(pointsToGeodataframe))
+
 regionPointsDir = "./regionPoints"
 weatherDir = './weather-ws'
 
@@ -74,8 +77,9 @@ if __name__ == "__main__":
                 deleteFile(variables.weather_points_all)
 
         if not exists(variables.weather_points_all):
-            pointsToGeodataframe(data, out_shape=variables.weather_points_all, columns=cols)
+            pointsToGeodataframe(data,latIndex=1,lonIndex=0, outShape=variables.weather_points_all, columnNames=cols) #pointsToGeodataframe(data,latIndex = 'latitude', lonIndex = 'longitude', outShape = variables.weather_points_all, columnNames=cols)
             print(f"  > created points file: {variables.weather_points_all}")
+
 
     # loop through scenarios
     for scenario in variables.available_scenarios:
@@ -124,6 +128,7 @@ if __name__ == "__main__":
                 if variables.weather_redownload:
                     downloadList.append([f'{line}', f'{weatherDir}/download/{scenario}/{gcm}/', "resume", 2])
                     downloadString += f'{line}\n'
+                    
                 elif not exists(f'{weatherDir}/download/{scenario}/{gcm}/{getFileBaseName(line, extension = True)}'):
                     downloadList.append([f'{line}', f'{weatherDir}/download/{scenario}/{gcm}/', "resume", 2])
                     downloadString += f'{line}\n'

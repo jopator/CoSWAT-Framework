@@ -8,14 +8,14 @@ import platform
 
 
 # version
-version                     = "0.4.9"
+version                     = "1.1.0"
 
 # Run generalized reservoir methods?
-new_res_methods             = True               # This will only work if you use this executable: swatplus-61.0.2.11-31-coswatn5-ifx-lin_x86_64
+new_res_methods             = False               # This will only work if you use this executable: swatplus-61.0.2.11-31-coswatn5-ifx-lin_x86_64
 
 # general
 data_resolution             = 30.91819138974098635 * 30     # 65
-processes                   = 8
+processes                   = 10
 taudemProcesses             = 5
 no_data_value               = -999
 
@@ -68,9 +68,8 @@ esa_base_url                = "https://dap.ceda.ac.uk"
 esa_base_path               = "neodc/esacci/land_cover/data/land_cover_maps/v2.0.7/ESACCI-LC-L4-LCCS-Map-300m-P1Y-{year}-v2.0.7.tif"
 esa_landuse_year            = 2011
 
-
 # Lakes & Reservoirs -- New
-hydro_lakes_path            = "./resources/hydro-lakes/HydroLakes/HydroLAKES_polys_v10_fixed.shp"
+hydro_lakes_path            = "./resources/hydro-lakes/HydroLakes/HydroLAKES_polys_v10_fixed_v2.shp"
 grand_res_path              = "./resources/hydro-lakes/GRanD_Version_1_3/GRanD_reservoirs_v1_3.shp"
 globathy_path               = "./resources/GLOBathy/GLOBathy_hAV_relationships.nc"
 
@@ -81,11 +80,21 @@ grand_final_shp             = "../model-data/{region}/shapes/lakes-grand-{auth}-
 grand_final_gpkg            = "../model-data/{region}/shapes/lakes-grand-{auth}-{code}.gpkg"
 grand_lake_final_shp        = "../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/lakes-grand-{auth}-{code}.shp"
 resolved_snaps              = "../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/resolved-lakes-grand-snap-{auth}-{code}.shp"
-grand_lake_thres            = 30    # Km2
-lake_buffer_thres           = 1500  # m
-lake_buffer_step            = 100   # m
+grand_lake_thres            = 20    # Km2 General for all water bodies
+grand_min_thres             = 10    # Km2 For granD reservoirs (if they DOR is larger than set threshold)
+grand_dor_thres             = 70    # DOR: Degree of regulation threshold
+
+lake_buffer_thres           = data_resolution*1  # m
+lake_buffer_step            = data_resolution   # m
 simplify_geometry           = True
-simplify_method             = 'VW'  # DP: Douglass Pecker / VW:Visvalingam–Whyatt / ConV: Convex Hull / ConC: COncave Hull
+simplify_method             = 'DP'  # DP: Douglass Pecker / VW:Visvalingam–Whyatt / ConV: Convex Hull / ConC: COncave Hull
+
+# Irrigation Topology
+main_threshold              = 1200 # In Km
+tributary_order             = 2
+fao_irrg_area_pctg_thres    = 40   # %
+
+# GRDC
 
 grdc_final_gpkg             = "../model-data/{region}/shapes/grdc_stations-{auth}-{code}.gpkg"
 
@@ -94,13 +103,13 @@ weather_points_all          = './weather-ws/global-points.gpkg'
 
 weather_resolution          = 0.5      # decimal degrees was 5
 
-prepare_weather             = True
+prepare_weather             = False
 redo_weather                = False
 weather_redownload          = False
 
 # run settings
-run_period                  = '1970-2010'
-historical_period           = '1970-2010'
+run_period                  = '1900-2010'
+historical_period           = '1900-2010'
 future_period               = '2071-2100'
 
 # output processing
@@ -109,7 +118,7 @@ remerge_maps                = True      # (re)merge all maps into one file
 
 # weather data
 available_scenarios        = ['observed',] # 'historical', 'ssp126', 'ssp370', 'ssp585']
-available_models           = ['gswp3-ewembi', 'mpi-esm1-2-hr', 'ukesm1-0-ll', 'gfdl-esm4', 'ipsl-cm6a-lr', 'mri-esm2-0']
+available_models           = ['gswp3-ewembi', 'mpi-esm1-2-hr', 'ukesm1-0-ll', 'gfdl-esm4', 'ipsl-cm6a-lr', 'mri-esm2-0'] #''
 
 
 weather_pr_links_list       = {}

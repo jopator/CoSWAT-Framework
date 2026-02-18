@@ -54,8 +54,8 @@ def install_package(package_name, version = None):
         os.system(install_command)
         
 
-try: from pytube import YouTube, Playlist
-except: install_package("pytube"); from pytube import YouTube, Playlist
+# try: from pytube import YouTube, Playlist
+# except: install_package("pytube"); from pytube import YouTube, Playlist
 
 try: import geopandas
 except: install_package("geopandas"); import geopandas

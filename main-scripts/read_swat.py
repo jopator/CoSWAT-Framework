@@ -258,8 +258,8 @@ class swat_Dtl(): #This is a decision table file
             return
 
         # Add decision table header
-        new_lines.append(f"{'name':<15}{'conds':<10}{'alts':<10}{'acts':<10}\n")
-        new_lines.append(f"{name:<15}{conds:<10}{alts:<10}{acts:<10}\n")
+        new_lines.append(f"{'name':<30}{'conds':<10}{'alts':<10}{'acts':<10}\n")
+        new_lines.append(f"{name:<30}{conds:<10}{alts:<10}{acts:<10}\n")
 
         # Condition table header
         cond_header = f"{'var':<12}{'obj':<12}{'obj_num':<12}{'lim_var':<12}{'lim_op':<12}{'lim_const':<12}"

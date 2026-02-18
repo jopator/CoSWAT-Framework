@@ -37,29 +37,29 @@ import os
 def doell_DtlActions(const,const2):
     # Actions Dataframe --> This is different for each reservoir
     act_df = pd.DataFrame(columns=['act_typ','obj','obj_num','name','option','const','const2','fp','alt1','alt2'])
-    act_df["act_typ"] = ["release","release"]
-    act_df["obj"] = ["res","res"]
-    act_df["obj_num"] = [int(x) for x in [0,0]]
-    act_df["name"] = ["no_rel","nat_rel"]
-    act_df["option"] = ["rate","doell"]
-    act_df["const"] = [int(0),float(const)]
-    act_df["const2"] = [float(x) for x in [0,const2]]
-    act_df["fp"] = ["null","null"]
-    act_df["alt1"] = ["y","n"]
-    act_df["alt2"] = ["n","y"]
+    act_df["act_typ"]   = ["release","release"]
+    act_df["obj"]       = ["res","res"]
+    act_df["obj_num"]   = [int(x) for x in [0,0]]
+    act_df["name"]      = ["no_rel","natlake"]
+    act_df["option"]    = ["rate","natlake"]
+    act_df["const"]     = [int(0),float(const)]
+    act_df["const2"]    = [float(x) for x in [0,const2]]
+    act_df["fp"]        = ["null","null"]
+    act_df["alt1"]      = ["y","n"]
+    act_df["alt2"]      = ["n","y"]
     return act_df
 
 def doell_DtlConditions(const):
     # Condition Dataframe --> This is different for each reservoir
     cond_df = pd.DataFrame(columns=['var','obj','obj_num','lim_var','lim_op','lim_const','alt1','alt2'])
-    cond_df["var"] = ["vol"]
-    cond_df["obj"] = ["res"]
-    cond_df["obj_num"] = [int(x) for x in [0]]
-    cond_df["lim_var"] = ["pvol"]
-    cond_df["lim_op"] = ["*"]
-    cond_df["lim_const"] = [float(x) for x in [const]]
-    cond_df["alt1"] = ["<"]
-    cond_df["alt2"] = [">"]
+    cond_df["var"]          = ["vol"]
+    cond_df["obj"]          = ["res"]
+    cond_df["obj_num"]      = [int(x) for x in [0]]
+    cond_df["lim_var"]      = ["pvol"]
+    cond_df["lim_op"]       = ["*"]
+    cond_df["lim_const"]    = [float(x) for x in [const]]
+    cond_df["alt1"]         = ["<"]
+    cond_df["alt2"]         = [">"]
     return cond_df
 
 def Hana06_DtlActions(hana_type,constdoell1,constdoell2,consthana1,consthana2):
@@ -71,57 +71,39 @@ def Hana06_DtlActions(hana_type,constdoell1,constdoell2,consthana1,consthana2):
     consthana2  : Beta - for irrigation (0.10) 
     """
     # Actions Dataframe --> This is different for each reservoir
-    act_df = pd.DataFrame(columns=['act_typ','obj','obj_num','name','option','const','const2','fp','alt1','alt2','alt3','alt4'])
-    act_df["act_typ"]   = ["release","release","release"]
-    act_df["obj"]       = ["res","res","res"]
-    act_df["obj_num"]   = [int(x) for x in [0,0,0]]
-    act_df["name"]      = ["no_rel","nat_rel","res_hana"]
-    act_df["option"]    = ["rate","doell",hana_type]
-    act_df["const"]     = [float(0),float(constdoell1),float(consthana1)]
-    act_df["const2"]    = [float(0),float(constdoell2),float(consthana2)]
-    act_df["fp"]        = ["null","null","null"]
-    act_df["alt1"]      = ["y","n","n"]
-    act_df["alt2"]      = ["n","y","n"]
-    act_df["alt3"]      = ["y","n","n"]
-    act_df["alt4"]      = ["n","n","y"]
+    act_df = pd.DataFrame(columns=['act_typ','obj','obj_num','name','option','const','const2','fp','alt1','alt2','alt3','alt4',"alt5"])
+    act_df["act_typ"]   = ["release","release","release","release","release"]
+    act_df["obj"]       = ["res","res","res","res","res"]
+    act_df["obj_num"]   = [int(x) for x in [0,0,0,0,0]]
+    act_df["name"]      = ["no_rel","natlake","h06_sch","inflow","overflow"]
+    act_df["option"]    = ["rate","natlake",hana_type,"inflo_frac",'ab_emer']
+    act_df["const"]     = [float(0),float(constdoell1),float(consthana1),float(1.000),float(0.000)]
+    act_df["const2"]    = [float(0),float(constdoell2),float(consthana2),float(0.000),float(0.000)]
+    act_df["fp"]        = ["null","null","null","null","null"]
+    act_df["alt1"]      = ["y","n","n","n","n"]
+    act_df["alt2"]      = ["n","y","n","n","n"]
+    act_df["alt3"]      = ["y","n","n","n","n"]
+    act_df["alt4"]      = ["n","n","y","n","n"]
+    act_df["alt5"]      = ["n","n","y","y","n"]
+    act_df["alt6"]      = ["n","n","n","y","y"]
     return act_df
     
-def Hype_DtlActions(constdoell1,constdoell2,consthype1,consthype2):
-    """
-    constdoell1 : % of pvol at 5 m depth
-    constdoell2 : Release rate
-    consthype1  : Amplitude coefficient (0.71 - northern hemisphere) 
-    consthype2  : Phase coefficient in radians (102 - northern hemisphere) 
-    """
-    # Actions Dataframe --> This is different for each reservoir
-    act_df = pd.DataFrame(columns=['act_typ','obj','obj_num','name','option','const','const2','fp','alt1','alt2','alt3','alt4'])
-    act_df["act_typ"]   = ["release","release","release"]
-    act_df["obj"]       = ["res","res","res"]
-    act_df["obj_num"]   = [int(x) for x in [0,0,0]]
-    act_df["name"]      = ["no_rel","nat_rel","res_hydroele"]
-    act_df["option"]    = ["rate","doell","hype_hp"]
-    act_df["const"]     = [float(0),float(constdoell1),float(consthype1)]
-    act_df["const2"]    = [float(0),float(constdoell2),float(consthype2)]
-    act_df["fp"]        = ["null","null","null"]
-    act_df["alt1"]      = ["y","n","n"]
-    act_df["alt2"]      = ["n","y","n"]
-    act_df["alt3"]      = ["y","n","n"]
-    act_df["alt4"]      = ["n","n","y"]
-    return act_df
 
 def Res_DtlConditions(const):
     # Condition Dataframe --> This is different for each reservoir that is regulated
-    cond_df = pd.DataFrame(columns=['var','obj','obj_num','lim_var','lim_op','lim_const','alt1','alt2','alt3','alt4'])
-    cond_df["var"] = ["vol","vol","year_seq"]
-    cond_df["obj"] = ["res","res","res"]
-    cond_df["obj_num"] = [int(x) for x in [0,0,0]]
-    cond_df["lim_var"] = ["pvol","pvol","null"]
-    cond_df["lim_op"] = ["*","*","*"]
-    cond_df["lim_const"] = [float(x) for x in [0.5,const,2.0]]
-    cond_df["alt1"] = ["<","<","<"]
-    cond_df["alt2"] = [">",">","<"]
-    cond_df["alt3"] = ["<","-",">"]
-    cond_df["alt4"] = [">","-",">"]
+    cond_df = pd.DataFrame(columns=['var','obj','obj_num','lim_var','lim_op','lim_const','alt1','alt2','alt3','alt4',"alt5","alt6"])
+    cond_df["var"] = ["vol","vol","year_seq","vol","vol"]
+    cond_df["obj"] = ["res","res","res","res","res"]
+    cond_df["obj_num"] = [int(x) for x in [0,0,0,0,0]]
+    cond_df["lim_var"] = ["pvol","pvol","null","evol","evol"]
+    cond_df["lim_op"] = ["*","*","*","*","*"]
+    cond_df["lim_const"] = [float(x) for x in [0.15,const,5.0,0.95,1.05]]
+    cond_df["alt1"] = ["<","<","<","-","-"]
+    cond_df["alt2"] = [">",">","<","-","-"]
+    cond_df["alt3"] = ["<","-",">","-","-"]
+    cond_df["alt4"] = [">","-",">","<","<"]
+    cond_df["alt5"] = [">","-",">",">","<"]
+    cond_df["alt6"] = [">","-",">",">",">"]
     return cond_df
 
 
@@ -220,7 +202,7 @@ if __name__ == '__main__':
         dtl_names = []
         for index, row in lakes_df.iterrows():                                                                      # Iterate across lakes and reservoirs
             lakeType    = row['Lake_type']
-            lakeId      = row['LakeId']
+            lakeId      = int(row['LakeId'])
             dtl_name    = f"res_{lakeId}"
             a = float(row['a']) 
             b = float(row['b'])
@@ -263,44 +245,29 @@ if __name__ == '__main__':
                     doellconst2      = 0.01000
                     
                     cond_df    = Res_DtlConditions(doellconst1)
-                    acts_df    = Hana06_DtlActions("hanazaki_06_irr",doellconst1,doellconst2,0.85000,0.10000)
+                    acts_df    = Hana06_DtlActions("irr-h06",doellconst1,doellconst2,0.85000,0.10000)
                     
                     # Read decision table
                     res_dtl = swat_Dtl(res_rel_dtl)
                     
                     # Add decision table
                     dtl_names.append(dtl_name)
-                    res_dtl.add_dtl(dtl_name,3,4,3,cond_df,acts_df,overwrite=True)
-                
-                elif mainUse == 'Hydroelectricity':
-                    doellconst1      = vol_5m_depth
-                    doellconst2      = 0.01000
-                    amp_coef         = 0.7
-                    phase            = -1.874     # Phase to peak on July, about day 200
-                    cond_df    = Res_DtlConditions(doellconst1)
-                    acts_df    = Hype_DtlActions(doellconst1,doellconst2,amp_coef,phase)
-                    
-                    # Read decision table
-                    res_dtl = swat_Dtl(res_rel_dtl)
-                    
-                    # Add decision table
-                    dtl_names.append(dtl_name)
-                    res_dtl.add_dtl(dtl_name,3,4,3,cond_df,acts_df,overwrite=True)
+                    res_dtl.add_dtl(dtl_name,5,6,5,cond_df,acts_df,overwrite=True)
 
                 else:
                     doellconst1      = vol_5m_depth
                     doellconst2      = 0.01000
                     
                     cond_df    = Res_DtlConditions(doellconst1)
-                    acts_df    = Hana06_DtlActions("hanazaki_06_gen",doellconst1,doellconst2,0.85000,0.00000)
+                    acts_df    = Hana06_DtlActions("nonirr-h06",doellconst1,doellconst2,0.85000,0.00000)
                     
                     # Read decision table
                     res_dtl = swat_Dtl(res_rel_dtl)
                     
                     # Add decision table
                     dtl_names.append(dtl_name)
-                    res_dtl.add_dtl(dtl_name,3,4,3,cond_df,acts_df,overwrite=True)
-            
+                    res_dtl.add_dtl(dtl_name,5,6,5,cond_df,acts_df,overwrite=True)
+
         #=========================================================
         #Assign decision tables to reservoir.res
 

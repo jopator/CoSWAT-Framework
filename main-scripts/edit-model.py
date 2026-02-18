@@ -166,9 +166,9 @@ if __name__ == '__main__':
             counter += 1; show_progress(counter, all)
             copy_file(fn, f"{txtinout_dir}/{file_name(fn)}", replace=False)
         
-        if exists(f"{txtinout_dir}/tmp.cli"):
-            os.remove(f"{txtinout_dir}/tmp.cli")
-            copy_file(f"{txtinout_dir}/tem.cli", f"{txtinout_dir}/tmp.cli", replace=True)
+        # if exists(f"{txtinout_dir}/tmp.cli"):
+        #     os.remove(f"{txtinout_dir}/tmp.cli")
+        #     copy_file(f"{txtinout_dir}/tem.cli", f"{txtinout_dir}/tmp.cli", replace=True)
 
         db_sqlite.cursor.execute("UPDATE project_config SET weather_data_dir = 'Scenarios/Default/TxtInOut' WHERE id='1';")
         db_sqlite.cursor.execute("UPDATE project_config SET input_files_dir = 'Scenarios/Default/TxtInOut' WHERE id='1';")
@@ -204,14 +204,14 @@ if __name__ == '__main__':
 
 
         # write files
-        db_sqlite.cursor.execute("UPDATE file_cio SET file_name = 'tem.cli' WHERE id='12';")
+        # db_sqlite.cursor.execute("UPDATE file_cio SET file_name = 'tem.cli' WHERE id='12';")
         db_sqlite.close_connection()
 
         command  = f'write_files '
         command += f"--project_db_file {project_db} "
 
-        if exists(f"{txtinout_dir}/tmp.cli"):
-            os.remove(f"{txtinout_dir}/tmp.cli")
+        # if exists(f"{txtinout_dir}/tmp.cli"):
+        #     os.remove(f"{txtinout_dir}/tmp.cli")
         
         os.system(command = f'{api} {command}')
 
@@ -236,8 +236,8 @@ if __name__ == '__main__':
 
         cioFileString   = "".join(cioFileContents)
 
-        write_to(cioFile, cioFileString.replace('pcp.cli           null              slr.cli', 'pcp.cli           tem.cli           slr.cli'))
-        write_to(cioFile, cioFileString.replace('tmp.cli', 'tem.cli'))
+        # write_to(cioFile, cioFileString.replace('pcp.cli           null              slr.cli', 'pcp.cli           tem.cli           slr.cli'))
+        # write_to(cioFile, cioFileString.replace('tmp.cli', 'tem.cli'))
         print(f'done with editor in {region}', 'SWAT+ Editor run complete')
 
         print()
