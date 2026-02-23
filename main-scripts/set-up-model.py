@@ -40,10 +40,10 @@ def set_up_model(region_, version_, get_data_, period_):
     os.system(f'python3 run-qswatplus.py {region_} --v {version_}')
     os.system(f'python3 edit-model.py {region_} --v {version_}')
 
-    # if variables.new_res_methods:
-        # os.system(f'python3 define-reservoirs.py {region_} --v {version_}')
-
-    # os.system(f'python3 define-irrigation.py {region_} --v {version_}')
+    if variables.new_res_methods:
+        os.system(f'python3 define-reservoirs.py {region_} --v {version_}')
+        os.system(f'python3 define-irrigation.py {region_} --v {version_}')
+        
     # os.system(f'run-model.py {region_} --v {version_} --y {period_}')
     # os.system(f'evaluate-model.py {region_} --v {version_}')
 

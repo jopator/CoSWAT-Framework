@@ -8,10 +8,10 @@ import platform
 
 
 # version
-version                     = "1.1.0"
+version                     = "1.5.0"
 
 # Run generalized reservoir methods?
-new_res_methods             = False               # This will only work if you use this executable: swatplus-61.0.2.11-31-coswatn5-ifx-lin_x86_64
+new_res_methods             = True               # This will only work if you use this executable: swatplus-61.0.2.11-31-coswatn5-ifx-lin_x86_64
 
 # general
 data_resolution             = 30.91819138974098635 * 30     # 65
@@ -118,7 +118,7 @@ remerge_maps                = True      # (re)merge all maps into one file
 
 # weather data
 available_scenarios        = ['observed',] # 'historical', 'ssp126', 'ssp370', 'ssp585']
-available_models           = ['gswp3-ewembi', 'mpi-esm1-2-hr', 'ukesm1-0-ll', 'gfdl-esm4', 'ipsl-cm6a-lr', 'mri-esm2-0'] #''
+available_models           = ['gswp3-w5e5','gswp3-ewembi', 'mpi-esm1-2-hr', 'ukesm1-0-ll', 'gfdl-esm4', 'ipsl-cm6a-lr', 'mri-esm2-0'] #''
 
 
 weather_pr_links_list       = {}
@@ -129,7 +129,7 @@ weather_wind_links_list     = {}
 weather_rlds_links_list     = {}
 
 scenariosData = {
-    'observed'  : ['gswp3-ewembi',],
+    'observed'  : ['gswp3-w5e5',],
     'historical': ['mpi-esm1-2-hr', 'ukesm1-0-ll', 'gfdl-esm4', 'ipsl-cm6a-lr', 'mri-esm2-0'],
     'picontrol' : ['mpi-esm1-2-hr', 'ukesm1-0-ll', 'gfdl-esm4', 'ipsl-cm6a-lr', 'mri-esm2-0'],
     'ssp126'    : ['mpi-esm1-2-hr', 'ukesm1-0-ll', 'gfdl-esm4', 'ipsl-cm6a-lr', 'mri-esm2-0'],
