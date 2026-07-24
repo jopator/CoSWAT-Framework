@@ -1,0 +1,2 @@
+#!/bin/bash
+apptainer build --fakeroot coswat_framework.sif apptainerfile.def

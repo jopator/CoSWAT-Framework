@@ -1,0 +1,152 @@
+Bootstrap: docker
+From: ubuntu:22.04
+
+%environment
+    export DEBIAN_FRONTEND=noninteractive
+    export TZ=Etc/UTC
+    export QT_QPA_PLATFORM=offscreen
+    export OMPI_ALLOW_RUN_AS_ROOT=1
+    export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+
+    export PYTHONNOUSERSITE=1
+
+    export PATH=/CoSWAT-Global-Model:/CoSWAT-Global-Model/data-preparation:/CoSWAT-Global-Model/main-scripts:$PATH
+    export PYTHONPATH=/CoSWAT-Global-Model:/CoSWAT-Global-Model/data-preparation:/CoSWAT-Global-Model/main-scripts:$PYTHONPATH
+
+%files
+    # Copy the CoSWAT-Global-Model folder into the image
+    # data-preparation/resources   /CoSWAT-Global-Model/data-preparation/resources
+    data-preparation/resources/QSWATPlus                        /CoSWAT-Global-Model/data-preparation/resources/QSWATPlus
+    data-preparation/resources/swatplus_datasets.sqlite         /CoSWAT-Global-Model/data-preparation/resources/swatplus_datasets.sqlite
+    data-preparation/resources/swatplus_wgn.sqlite              /CoSWAT-Global-Model/data-preparation/resources/swatplus_wgn.sqlite
+    data-preparation/resources/swatplus_api                     /CoSWAT-Global-Model/data-preparation/resources/swatplus_api
+
+%post
+    # Ensure noninteractive also during build
+    export DEBIAN_FRONTEND=noninteractive
+    export TZ=Etc/UTC
+
+    # Install Python 3.10 and required dependencies
+    apt-get update
+    apt-get install -y \
+        python3.10 python3.10-venv python3.10-dev python3-pip \
+        gnupg software-properties-common qgis cmake \
+        openmpi-bin openmpi-common libopenmpi-dev \
+        openssh-client openssh-server \
+        unzip nano imagemagick libmagickwand-dev \
+        gdal-bin libgdal-dev python3-gdal \
+        ffmpeg cdo
+
+    # Install the Python packages
+    pip3 install hydroeval wand cython
+    pip3 install matplotlib
+    pip3 install cjfx
+    pip3 install netcdf4 fiona
+    pip3 install ccfx
+    pip3 install pandas==1.5.3 xarray==2022.12.0 matplotlib==3.6.3 rasterio==1.3.4 numexpr==2.8.4 bottleneck==1.3.6
+    pip3 install numpy==1.23.4
+    pip3 install --no-deps geopandas==1.0.1 rioxarray==0.13.4
+    pip3 install --no-cache-dir simplification==0.7.12
+    # pip install whitebox --target=/tmp/whitebox_pkg
+    # export PYTHONPATH=/tmp/whitebox_pkg:$PYTHONPATH
+    pip3 install whitebox
+    python3 -c "import whitebox; whitebox.WhiteboxTools()"
+    
+    # Set Python 3.10 as the default python3
+    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
+
+    wget https://celray.chawanda.com/assets/downloads/swatplus-linux.tgz -O /tmp/swatplus-linux.tgz
+    mkdir -p /tmp/swatplus-linux/
+    tar -xvzf /tmp/swatplus-linux.tgz -C /tmp/swatplus-linux/
+    cd /tmp/swatplus-linux/ && ./installforme.sh
+
+    # because we really do not have a monitor and we need to simulate display
+    echo 'export XDG_RUNTIME_DIR=/tmp/runtime-root' >> ~/.bashrc
+    mkdir -p /tmp/runtime-root
+    chmod 700 /tmp/runtime-root
+    echo 'export PS1="\[\033[01;32m\]\u\[\033[00m\] | \[\033[01;34m\]\$(pwd | rev | cut -d/ -f1-3 | rev)\[\033[00m\] > "' >> ~/.bashrc
+
+    # env already set in %environment, but also valid during build
+    export QT_QPA_PLATFORM=offscreen
+    export OMPI_ALLOW_RUN_AS_ROOT=1
+    export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+
+    mkdir -p /CoSWAT-Global-Model/data-preparation/resources
+
+    # unzip the regions and QSWATPlus zip files. If exists, remove the existing directories first.
+    # if [ -d "/CoSWAT-Global-Model/data-preparation/resources/regions" ]; then rm -rf /CoSWAT-Global-Model/data-preparation/resources/regions; fi
+    # if [ -d "/CoSWAT-Global-Model/data-preparation/resources/QSWATPlus" ]; then rm -rf /CoSWAT-Global-Model/data-preparation/resources/QSWATPlus; fi
+    # if [ -d "/CoSWAT-Global-Model/data-preparation/resources/GLOBathy" ]; then rm -rf /CoSWAT-Global-Model/data-preparation/resources/GLOBathy; fi
+    # if [ -d "/CoSWAT-Global-Model/data-preparation/resources/hydro-lakes" ]; then rm -rf /CoSWAT-Global-Model/data-preparation/resources/hydro-lakes; fi
+
+    # unzip /CoSWAT-Global-Model/data-preparation/resources/regions.zip -d /CoSWAT-Global-Model/data-preparation/resources
+    # unzip /CoSWAT-Global-Model/data-preparation/resources/QSWATPlus.zip -d /CoSWAT-Global-Model/data-preparation/resources
+    # unzip /CoSWAT-Global-Model/data-preparation/resources/GLOBathy.zip -d /CoSWAT-Global-Model/data-preparation/resources
+    # unzip /CoSWAT-Global-Model/data-preparation/resources/hydro-lakes.zip -d /CoSWAT-Global-Model/data-preparation/resources
+
+    # add paths to path and pythonpath in bashrc
+    echo 'export PATH=$PATH:/CoSWAT-Global-Model' >> ~/.bashrc
+    echo 'export PYTHONPATH=$PYTHONPATH:/CoSWAT-Global-Model' >> ~/.bashrc
+    echo 'export PATH=$PATH:/CoSWAT-Global-Model/data-preparation' >> ~/.bashrc 
+    echo 'export PYTHONPATH=$PYTHONPATH:/CoSWAT-Global-Model/data-preparation' >> ~/.bashrc
+    echo 'export PATH=$PATH:/CoSWAT-Global-Model/main-scripts' >> ~/.bashrc 
+    echo 'export PYTHONPATH=$PYTHONPATH:/CoSWAT-Global-Model/main-scripts' >> ~/.bashrc
+
+    cp /root/.local/share/SWATPlus/SWATPlusEditor/resources/app.asar.unpacked/static/api_dist/swatplus_api /CoSWAT-Global-Model/data-preparation/resources/swatplus_api
+    
+    
+    # QSWATPlus DB fix
+    if [ -f /root/.local/share/SWATPlus/Databases/QSWATPlusProj.sqlite ]; then
+        cp /root/.local/share/SWATPlus/Databases/QSWATPlusProj.sqlite \
+           /CoSWAT-Global-Model/data-preparation/resources/QSWATPlus/SWATPlus/Databases/QSWATPlusProj.sqlite || true
+    fi
+    
+    
+    rm /root/.local/share/SWATPlus/Databases/swatplus_datasets.sqlite
+    cp /CoSWAT-Global-Model/data-preparation/resources/swatplus_datasets.sqlite /root/.local/share/SWATPlus/Databases/swatplus_datasets.sqlite
+
+    cp ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/QSWATPlusLinux3_64/QSWATPlus/polygonizeInC.cpython-310-x86_64-linux-gnu.so /CoSWAT-Global-Model/data-preparation/resources/QSWATPlus/polygonizeInC.cpython-310-x86_64-linux-gnu.so
+    cp ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/QSWATPlusLinux3_64/QSWATPlus/polygonizeInC.cpython-311-x86_64-linux-gnu.so /CoSWAT-Global-Model/data-preparation/resources/QSWATPlus/polygonizeInC.cpython-311-x86_64-linux-gnu.so
+
+    cp ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/QSWATPlusLinux3_64/QSWATPlus/dataInC.cpython-310-x86_64-linux-gnu.so /CoSWAT-Global-Model/data-preparation/resources/QSWATPlus/dataInC.cpython-310-x86_64-linux-gnu.so
+    cp ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/QSWATPlusLinux3_64/QSWATPlus/dataInC.cpython-311-x86_64-linux-gnu.so /CoSWAT-Global-Model/data-preparation/resources/QSWATPlus/dataInC.cpython-311-x86_64-linux-gnu.so
+
+    cp ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/QSWATPlusLinux3_64/QSWATPlus/jenks.cpython-310-x86_64-linux-gnu.so /CoSWAT-Global-Model/data-preparation/resources/QSWATPlus/jenks.cpython-310-x86_64-linux-gnu.so
+    cp ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/QSWATPlusLinux3_64/QSWATPlus/jenks.cpython-311-x86_64-linux-gnu.so /CoSWAT-Global-Model/data-preparation/resources/QSWATPlus/jenks.cpython-311-x86_64-linux-gnu.so
+
+    cp ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/QSWATPlusLinux3_64/QSWATPlus/polygonizeInC2.cpython-310-x86_64-linux-gnu.so /CoSWAT-Global-Model/data-preparation/resources/QSWATPlus/polygonizeInC2.cpython-310-x86_64-linux-gnu.so
+    cp ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/QSWATPlusLinux3_64/QSWATPlus/polygonizeInC2.cpython-311-x86_64-linux-gnu.so /CoSWAT-Global-Model/data-preparation/resources/QSWATPlus/polygonizeInC2.cpython-311-x86_64-linux-gnu.so
+
+    # set executable
+    chmod +x /CoSWAT-Global-Model/data-preparation/resources/swatplus_api
+    chmod +x /CoSWAT-Global-Model/data-preparation/*
+
+
+    # SWATPlus path fix
+    mkdir -p /usr/local/share
+    if [ -d /root/.local/share/SWATPlus ]; then
+        ln -s /root/.local/share/SWATPlus /usr/local/share/SWATPlus
+    fi
+
+
+        # Create entrypoint script
+    cat > /entrypoint.sh << 'EOF'
+    #!/bin/bash
+    if [ -d "/CoSWAT-Global-Model/main-scripts" ] && [ "$(ls -A /CoSWAT-Global-Model/main-scripts/ 2>/dev/null)" ]; then
+    chmod +x /CoSWAT-Global-Model/main-scripts/*
+    echo "made scripts in main-scripts executable"
+    fi
+    exec "$@"
+    EOF
+
+    # Make the entrypoint script executable
+    chmod +x /entrypoint.sh
+    
+%runscript
+    # If no command given, default to bash (like CMD ["bash"])
+    if [ $# -eq 0 ]; then
+        set -- bash
+    fi
+
+    # Emulate ENTRYPOINT ["/entrypoint.sh"]
+    exec /entrypoint.sh "$@"

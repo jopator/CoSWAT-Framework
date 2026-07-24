@@ -1,0 +1,2 @@
+#!/bin/bash
+apptainer shell --cleanenv --no-home --bind $PWD:/CoSWAT-Global-Model --env PS1="\[\033[00;35m\]\u\[\033[00m\] | \[\033[01;36m\]\[[CoSWAT-Framework]\[\033[00m\] > " coswat_framework.sif

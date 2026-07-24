@@ -1,0 +1,389 @@
+#!/bin/python3
+
+'''
+This script runs the COmmunity SWAT+ Model
+(CoSWAT-Global) one by one.
+
+Author  : Celray James CHAWANDA
+Date    : 14/07/2022
+Contact : celray@chawanda.com
+Licence : MIT
+GitHub  : github.com/celray
+'''
+
+import os, sys, platform, math
+
+import shapely
+from cjfx import list_folders, exists, ignore_warnings, ignore_warnings, goto_dir, pandas
+from ccfx import createPath, deleteFile, writeFile, unzipFile
+import sqlalchemy
+import geopandas
+import whitebox
+import os.path
+import shutil
+import sys
+import platform
+import warnings
+import argparse
+
+ignore_warnings()
+
+if platform.system() == "Linux":
+    import pyximport  # importing cython needs this on linux
+    pyximport.install()
+    ignore_warnings()
+
+# skip deprecation warnings when importing PyQt5
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    from qgis.core import *
+    from qgis.utils import iface
+    from PyQt5.QtGui import *
+    from PyQt5.QtCore import *
+
+# qInstallMessageHandler(lambda *args: None) 
+# QgsApplication.setPrefixPath('C:/Program Files/QGIS 3.10/apps/qgis', True)
+qgs = QgsApplication([], True)
+qgs.initQgis()
+
+goto_dir(__file__)
+
+# Prepare processing framework
+if platform.system() == "Windows":
+    sys.path.append('{QGIS_Dir}/apps/qgis/python/plugins'.format(
+        QGIS_Dir = os.environ['QGIS_Dir'])) # Folder where Processing is located
+else:
+    sys.path.append('/usr/share/qgis/python/plugins') # Folder where Processing is located
+
+sys.path.append('../data-preparation')
+sys.path.append('../main-scripts')
+
+# extract QSWAT+
+if not os.path.exists('../resources/QSWATPlus'):
+    shutil.unpack_archive('../resources/QSWATPlus.zip', '../resources/')
+
+# skip syntax warnings on linux
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    from processing.core.Processing import Processing
+    Processing.initialize()
+
+    import processing
+
+
+from shapely.geometry import Point, LineString, MultiLineString
+
+def count_intersections(line, polygon):
+    intersection = line.intersection(polygon)
+    if isinstance(intersection, Point):
+        return 1
+    elif isinstance(intersection, (LineString, MultiLineString)):
+        return len(intersection.geoms) if hasattr(intersection, 'geoms') else 1
+    return 0
+
+
+class outFX:
+    """
+    Class to handle output messages. currently dummy
+    """
+    def __init__(self, message:str, v = False):
+        self.message = message
+        self.v = v
+        self.messageBank = []
+        self.write(message)
+
+    def write(self, message: str) -> None:
+        """
+        Write message to console and log file.
+        """
+        
+        if self.v: print(message)
+        self.messageBank.append(message)
+    
+    def append(self, message: str) -> None:
+        """
+        Append message to console and log file.
+        """
+        if self.v: self.write(message)
+        self.messageBank.append(message)
+
+    def moveCursor(self, cursor) -> None:
+        """
+        Move the cursor to a new position in the output.
+        """
+        pass
+
+    def __call__(self, message: str) -> None:
+        """
+        Allow the object to be called like a function.
+        """
+        self.append(message)
+
+    def textColor(self) -> None:
+        """
+        Set the text color.
+        """
+        pass
+
+    def setTextColor(self, color) -> None:
+        """
+        Set the text color.
+        """
+        pass
+
+
+import atexit
+
+
+from resources.QSWATPlus.QSWATPlusMain import QSWATPlus
+from resources.QSWATPlus.delineation import Delineation
+from resources.QSWATPlus.floodplain import Floodplain
+from resources.QSWATPlus.landscape import Landscape
+from resources.QSWATPlus.raster import Raster
+from resources.QSWATPlus.hrus import HRUs
+from resources.QSWATPlus.QSWATUtils import QSWATUtils
+from resources.QSWATPlus.parameters import Parameters
+
+import datavariables as variables
+
+from glob import glob
+
+atexit.register(QgsApplication.exitQgis)
+
+
+details = {
+    'auth': variables.final_proj_auth,
+    'code': variables.final_proj_code,
+}
+
+
+class DummyInterface(object):
+    """Dummy iface to give access to layers."""
+
+    def __getattr__(self, *args, **kwargs):
+        """Dummy function."""
+        def dummy(*args, **kwargs):
+            return self
+        return dummy
+
+    def __iter__(self):
+        """Dummy function."""
+        return self
+
+    def __next__(self):
+        """Dummy function."""
+        raise StopIteration
+
+    def layers(self):
+        """Simulate iface.legendInterface().layers()."""
+        return list(QgsProject.instance().mapLayers().values())
+
+
+
+if __name__ == '__main__':
+
+    # change working directory
+    goto_dir(__file__)
+
+    # create argument parser
+    parser = argparse.ArgumentParser(description="a terminal version of QSWAT+ for running the model setup and delineation.")
+
+    parser.add_argument("r", help="the name of the region to run the model for. If not specified, all regions will be processed.", nargs='*', default=[])
+    parser.add_argument("--v", help="the version of the model setup to use. If not specified, the datavariables value will be used.", nargs='?', default=None)
+    parser.add_argument("--m", help="indicates this is a mannual run", action='store_true')
+
+    args = parser.parse_args()
+
+    # get model setup version
+    if args.v is None: version = variables.version
+    else: version = args.v  
+
+    # get regions
+    if len(args.r) > 0: regions = args.r
+    else: regions = list_folders(f"../model-setup/CoSWATv{version}/")
+
+    if not exists(f"../model-setup/CoSWATv{version}"):
+        print(f'\t! the version, CoSWATv{version}, does not exist, the following versions are available:')
+        for v in list_folders('../model-setup/'):
+            if v.startswith('CoSWATv'):
+                print(f'\t\t- {v}')
+        print(f'\t> please specify a valid version using the --v argument')
+        sys.exit(1)
+
+    print(f"\nregions to run: {', '.join(regions)}")
+    print(f"CoSWAT version: {version}")
+
+    for region in regions:
+        details['version'] = version
+        details['region']  = region
+        coswat_data_version       = variables.coswat_data_version
+        details['coswat_data_version']  = coswat_data_version
+        print(f'\n\nrunning QSWAT+ for region: {region} ({version})')
+        iface   = DummyInterface()
+        plugin  = QSWATPlus(iface)
+        dlg     = plugin._odlg  # useful shorthand for later
+        
+        projDir = f'../model-setup/CoSWATv{version}/{region}'
+        data_dir= f'../model-data/{coswat_data_version}/{region}'
+
+        if not os.path.exists(projDir):
+            QSWATUtils.error('Project directory {0} not found'.format(projDir), True)
+            sys.exit(1)
+
+        projFile = f"{projDir}/{region}.qgs"
+
+        proj = QgsProject.instance()
+        
+        proj.read(projFile)
+
+        plugin.setupProject(proj, True)
+
+        # make connection and load tables
+        landuse_table   = f"{data_dir}/tables/worldLanduseLookup.csv"
+        soil_table      = f"{data_dir}/tables/worldSoilsLookup.csv"
+        user_soil_table = f"{data_dir}/tables/worldSoilsUsersoil.csv"
+
+        landuse_df      = pandas.read_csv(landuse_table, names=["LANDUSE_ID", "SWAT_CODE"], skiprows=1)
+        soil_df         = pandas.read_csv(soil_table, names=["SOIL_ID", "NAME"], skiprows=1)
+        user_soil_df    = pandas.read_csv(user_soil_table)
+
+        user_soil_df            = user_soil_df.fillna("")
+        user_soil_df['SEQN']    = user_soil_df['SEQN'].astype(str)
+
+        db = sqlalchemy.create_engine(f'sqlite:///{projDir}/{region}.sqlite')
+
+        landuse_df.to_sql('landuse_lookup', db, if_exists="replace", index=False)
+        soil_df.to_sql('soil_lookup', db, if_exists="replace", index=False)
+        user_soil_df.to_sql('usersoil', db, if_exists="replace", index=False, )
+
+        plugin._gv.db.clearTable('BASINSDATA')
+        plugin.setupProject(proj, True)
+
+        if not (os.path.exists(plugin._gv.textDir) and os.path.exists(plugin._gv.landuseDir)):
+            QSWATUtils.error('Directories not created', True)
+            sys.exit(1)
+
+        if not dlg.delinButton.isEnabled():
+            QSWATUtils.error('Delineate button not enabled', True)
+            sys.exit(1)
+
+        delin = Delineation(plugin._gv, plugin._demIsProcessed)
+        delin.init()
+        delin._dlg.numProcesses.setValue(variables.taudemProcesses)
+
+        QSWATUtils.information('DEM: {0}'.format(os.path.split(plugin._gv.demFile)[1]), True)
+        delin.addHillshade(plugin._gv.demFile, None, None, None)
+        QSWATUtils.information('Inlets/outlets file: {0}'.format(os.path.split(plugin._gv.outletFile)[1]), True)
+        
+        if not exists(f"../resources/regions/"):
+            print("Extracting regions resources...")
+            unzipFile('../resources/regions.zip', '../resources')
+        
+        if variables.region_source == "regions_v2":
+            baseRegion = region.split("-")[0]+"-"+region.split("-")[1]
+            details['baseRegion'] = baseRegion
+            outlets_buffer_gpd  = geopandas.read_file(f"../resources/{variables.region_source}/{baseRegion}/{region}/region_mask-ESRI-54003.gpkg").to_crs('{auth}:{code}'.format(**details))
+
+        else:
+            outlets_buffer_gpd  = geopandas.read_file(f"../resources/{variables.region_source}/{region}/outlets-buffer.gpkg").to_crs('{auth}:{code}'.format(**details))
+        
+        # Improved pit fill for fel.tif
+        dem_FN   = plugin._gv.demFile
+        fel_FN   = os.path.join(os.path.dirname(dem_FN), os.path.basename(dem_FN).split(".")[0] + "fel" + ".tif")
+        if os.path.isfile(fel_FN):
+            os.remove(fel_FN)
+        wbt = whitebox.WhiteboxTools()
+        wbt.verbose = False
+        wbt.breach_depressions_least_cost(dem=dem_FN,output=fel_FN,dist=100,max_cost=50)
+        delin.runTauDEM2(ver = version, reg = region,
+            in_outlet_path = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/outlets.shp'),
+            Mask_gpd    = outlets_buffer_gpd,
+            sel_file    = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/outlets_sel.shp')
+        )
+        
+        if variables.run_flood_plains:
+            print(f"Running floodplain... [{region}]")
+            createPath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/')
+            writeFile(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/creatingFloodPlain', 'Creating floodplain...\nThis is just an indicator file\nit will be removed when the floodplain is created')
+            fxObj           = outFX('Running floodplain...')
+            floodPlain      = Floodplain(plugin._gv, fxObj, 1)
+            landScape       = Landscape(plugin._gv, fxObj, 1, fxObj)
+
+            landScape.numProcesses  = variables.taudemProcesses
+            landScape.clipperFile   = plugin._gv.subbasinsFile
+            
+            print(f"   > calculating hillslopes [{region}]")
+            landScape.calcHillslopes(variables.floodPlainDemInvThres, landScape.clipperFile, proj.layerTreeRoot())
+
+            print(f"   > calculating floodplain [{region}]")
+            landScape.calcFloodplainParallel(True, proj.layerTreeRoot(), variables.taudemProcesses)
+            plugin._gv.floodFile = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/invflood0_00.tif')
+        
+        else:
+            print("Floodplains skipped...")
+
+        if variables.include_lakes:
+            lakesShapefn    = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/lakes-grand-{variables.final_proj_auth}-{variables.final_proj_code}.shp')
+            rivsShapefn     = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/dem-aster-{variables.final_proj_auth}-{variables.final_proj_code}-channel.shp')
+
+            lakes_gdf = geopandas.read_file(lakesShapefn)
+
+            if lakes_gdf.empty:
+                print("\t\t > Lakes shapefile empty, the region does not have any...")
+                plugin._gv.lakeFile = ''
+                plugin.lakesDone = True
+            else:
+                os.system(f'python3 integrate-lakes.py {region} --v {version}')
+                delin.lakePointsAdded = False
+        else:
+            rivsShapefn     = os.path.abspath(f'../model-setup/CoSWATv{version}/{region}/Watershed/Shapes/dem-aster-{variables.final_proj_auth}-{variables.final_proj_code}channel.shp')
+            lakesShapefn    = ''
+            plugin._gv.lakeFile = ''
+            plugin.lakesDone = True
+                
+        delin.finishDelineation(details=details)
+        deleteFile(f'../model-setup/CoSWATv{version}/{region}/Watershed/Rasters/Landscape/Flood/creatingFloodPlain')
+
+        if not dlg.hrusButton.isEnabled():
+            QSWATUtils.error('\t ! HRUs button not enabled', True)
+            sys.exit(1)
+
+        hrus = HRUs(plugin._gv, dlg.reportsBox)
+        hrus.init()
+        hrus._gv.useLandscapes = True
+        hrus._dlg.generateFullHRUs.setEnabled(True)
+        # hrus._dlg.channelMergeVal.setText(str(5))
+        hrus.fullHRUsWanted = True
+        hrus.initFloodplain()
+        hrus.readFiles()
+
+        if not os.path.exists(QSWATUtils.join(plugin._gv.textDir, Parameters._TOPOREPORT)):
+            QSWATUtils.error('\t ! Elevation report not created \n\n\t   Have you run Delineation?\n', True)
+            sys.exit(1)
+
+        if not os.path.exists(QSWATUtils.join(plugin._gv.textDir, Parameters._BASINREPORT)):
+            QSWATUtils.error('\t ! Landuse and soil report not created', True)
+            sys.exit(1)
+
+        hrus.calcHRUs()
+        if not os.path.exists(QSWATUtils.join(plugin._gv.textDir, Parameters._HRUSREPORT)):
+            QSWATUtils.error('\t ! HRUs report not created', True)
+            sys.exit(1)
+
+        if not os.path.exists(QSWATUtils.join(projDir, r'Watershed/Shapes/rivs1.shp')):
+            QSWATUtils.error('\t ! Streams shapefile not created', True)
+            sys.exit(1)
+
+        if not os.path.exists(QSWATUtils.join(projDir, r'Watershed/Shapes/subs1.shp')):
+            QSWATUtils.error('\t ! Subbasins shapefile not created', True)
+            sys.exit(1)
+
+        QSWATUtils.information('\t - finished creating HRUs\n', True)
+        print()
+        print(f'done with running qswat+ for region {region}', '\nQSWAT+ run complete')
+
+        if args.m:
+            answer = input("run SWAT+ Edit for this region? (Y/n): ")
+            if answer.lower() in ['y', 'yes', '']:
+                os.system(f'edit-model.py {region} --m')
